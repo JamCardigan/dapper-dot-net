@@ -2945,6 +2945,9 @@ Type type, IDataReader reader, int startBound = 0, int length = -1, bool returnN
     /// A bag of parameters that can be passed to the Dapper Query and Execute methods
     /// </summary>
     partial class DynamicParameters : SqlMapper.IDynamicParameters
+#if !CSHARP30        
+        , IParametes
+#endif
     {
         internal const DbType EnumerableMultiParameter = (DbType)(-1);
         static Dictionary<SqlMapper.Identity, Action<IDbCommand, object>> paramReaderCache = new Dictionary<SqlMapper.Identity, Action<IDbCommand, object>>();
@@ -3613,25 +3616,55 @@ string name, object value = null, DbType? dbType = null, ParameterDirection? dir
 
 #endif
 
-#if !CSHARP30
-    /// <summary>
-    /// Interface for the SqlMapper class
-    /// </summary>
-    public interface ISqlMapper
+#if! CSHARP30
+/// <summary>
+/// 
+/// </summary>
+public interface ISqlMapper
     {
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="cnn"></param>
-        /// <param name="sql"></param>
-        /// <param name="param"></param>
-        /// <param name="transaction"></param>
-        /// <param name="buffered"></param>
-        /// <param name="commandTimeout"></param>
-        /// <param name="commandType"></param>
-        /// <returns></returns>
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="sql"></param>
+    /// <param name="param"></param>
+    /// <param name="transaction"></param>
+    /// <param name="commandTimeout"></param>
+    /// <param name="commandType"></param>
+    /// <returns></returns>
+        int Execute(
+            string sql,
+            dynamic param = null,
+            IDbTransaction transaction = null,
+            int? commandTimeout = null,
+            CommandType? commandType = null);
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="sql"></param>
+    /// <param name="param"></param>
+    /// <param name="transaction"></param>
+    /// <param name="buffered"></param>
+    /// <param name="commandTimeout"></param>
+    /// <param name="commandType"></param>
+    /// <returns></returns>
         IEnumerable<dynamic> Query(
-            IDbConnection cnn,
+            string sql, dynamic param = null,
+            IDbTransaction transaction = null, 
+            bool buffered = true, 
+            int? commandTimeout = null,
+            CommandType? commandType = null);
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="sql"></param>
+    /// <param name="param"></param>
+    /// <param name="transaction"></param>
+    /// <param name="buffered"></param>
+    /// <param name="commandTimeout"></param>
+    /// <param name="commandType"></param>
+    /// <returns></returns>
+        IEnumerable<T> Query<T>(
             string sql,
             dynamic param = null,
             IDbTransaction transaction = null,
@@ -3639,10 +3672,82 @@ string name, object value = null, DbType? dbType = null, ParameterDirection? dir
             int? commandTimeout = null,
             CommandType? commandType = null);
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="sql"></param>
+    /// <param name="param"></param>
+    /// <param name="transaction"></param>
+    /// <param name="commandTimeout"></param>
+    /// <param name="commandType"></param>
+    /// <returns></returns>
+        IGridReader QueryMultiple(
+            string sql,
+            dynamic param = null,
+            IDbTransaction transaction = null,
+            int? commandTimeout = null,
+            CommandType? commandType = null);
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public class SqlMapperWrapper : ISqlMapper
+    {
+        private readonly IDbConnection _connection;
+
         /// <summary>
         /// 
         /// </summary>
-        /// <param name="cnn"></param>
+        /// <param name="connection"></param>
+        public SqlMapperWrapper(IDbConnection connection)
+        {
+            _connection = connection;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="sql"></param>
+        /// <param name="param"></param>
+        /// <param name="transaction"></param>
+        /// <param name="commandTimeout"></param>
+        /// <param name="commandType"></param>
+        /// <returns></returns>
+        public int Execute(
+            string sql, 
+            dynamic param = null, 
+            IDbTransaction transaction = null, 
+            int? commandTimeout = null,
+            CommandType? commandType = null)
+        {
+            return _connection.Execute(sql, param as object, transaction, commandTimeout, commandType);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="sql"></param>
+        /// <param name="param"></param>
+        /// <param name="transaction"></param>
+        /// <param name="buffered"></param>
+        /// <param name="commandTimeout"></param>
+        /// <param name="commandType"></param>
+        /// <returns></returns>
+        public IEnumerable<dynamic> Query(
+            string sql, 
+            dynamic param = null, 
+            IDbTransaction transaction = null, 
+            bool buffered = true,
+            int? commandTimeout = null, 
+            CommandType? commandType = null)
+        {
+            return _connection.Query<dynamic>(sql, param as object, transaction, buffered, commandTimeout, commandType);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
         /// <param name="sql"></param>
         /// <param name="param"></param>
         /// <param name="transaction"></param>
@@ -3651,141 +3756,34 @@ string name, object value = null, DbType? dbType = null, ParameterDirection? dir
         /// <param name="commandType"></param>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
-        IEnumerable<T> Query<T>(
-            IDbConnection cnn,
-            string sql,
-            dynamic param = null,
-            IDbTransaction transaction = null,
+        public IEnumerable<T> Query<T>(
+            string sql, 
+            dynamic param = null, 
+            IDbTransaction transaction = null, 
             bool buffered = true,
-            int? commandTimeout = null,
-            CommandType? commandType = null);
+            int? commandTimeout = null, 
+            CommandType? commandType = null)
+        {
+            return _connection.Query<T>(sql, param as object, transaction, buffered, commandTimeout, commandType);
+        }
 
         /// <summary>
         /// 
         /// </summary>
-        /// <param name="cnn"></param>
         /// <param name="sql"></param>
         /// <param name="param"></param>
         /// <param name="transaction"></param>
         /// <param name="commandTimeout"></param>
         /// <param name="commandType"></param>
         /// <returns></returns>
-        IGridReader QueryMultiple(
-            IDbConnection cnn,
-            string sql,
-            dynamic param = null,
-            IDbTransaction transaction = null,
-            int? commandTimeout = null,
-            CommandType? commandType = null);
-
-        /// <summary>
-        /// Execute parameterized SQL  
-        /// </summary>
-        /// <returns>Number of rows affected</returns>
-        int Execute(
-            IDbConnection cnn, 
-            string sql, 
-            dynamic param = null, 
-            IDbTransaction transaction = null,
-            int? commandTimeout = null, 
-            CommandType? commandType = null);
-    }
-
-    /// <summary>
-    /// A non static wrapper to enable testability of the SqlMapper functionality 
-    /// </summary>
-    public class SqlMapperWrapper : ISqlMapper
-    {
-        /// <summary>
-        /// Executes a query, returning the data typed as per T
-        /// </summary>
-        /// <remarks>the dynamic param may seem a bit odd, but this works around a major usability issue in vs, if it is Object vs completion gets annoying. Eg type new [space] get new object</remarks>
-        /// <returns>A sequence of data of the supplied type; if a basic type (int, string, etc) is queried then the data from the first column in assumed, otherwise an instance is
-        /// created per row, and a direct column-name===member-name mapping is assumed (case insensitive).
-        /// </returns>
-        public IEnumerable<dynamic> Query(
-            IDbConnection cnn,
-            string sql,
-            dynamic param = null,
-            IDbTransaction transaction = null,
-            bool buffered = true,
-            int? commandTimeout = null,
-            CommandType? commandType = null)
-        {
-            return SqlMapper.Query<dynamic>(
-                cnn,
-                sql,
-                param,
-                transaction,
-                buffered,
-                commandTimeout,
-                commandType);
-        }
-
-        /// <summary>
-        /// Executes a query, returning the data typed as per T
-        /// </summary>
-        /// <remarks>the dynamic param may seem a bit odd, but this works around a major usability issue in vs, if it is Object vs completion gets annoying. Eg type new [space] get new object</remarks>
-        /// <returns>A sequence of data of the supplied type; if a basic type (int, string, etc) is queried then the data from the first column in assumed, otherwise an instance is
-        /// created per row, and a direct column-name===member-name mapping is assumed (case insensitive).
-        /// </returns>
-        public IEnumerable<T> Query<T>(
-            IDbConnection cnn,
-            string sql,
-            dynamic param = null,
-            IDbTransaction transaction = null,
-            bool buffered = true,
-            int? commandTimeout = null,
-            CommandType? commandType = null)
-        {
-            return SqlMapper.Query<T>(
-                cnn,
-                sql,
-                param,
-                transaction,
-                buffered,
-                commandTimeout);
-        }
-
-        /// <summary>
-        /// Execute a command that returns multiple result sets, and access each in turn
-        /// </summary>
         public IGridReader QueryMultiple(
-            IDbConnection cnn,
-            string sql,
-            dynamic param = null,
-            IDbTransaction transaction = null,
+            string sql, 
+            dynamic param = null, 
+            IDbTransaction transaction = null, 
             int? commandTimeout = null,
             CommandType? commandType = null)
         {
-            return SqlMapper.QueryMultiple(
-                cnn,
-                sql,
-                param,
-                transaction,
-                commandTimeout,
-                commandType);
-        }
-
-        /// <summary>
-        /// Execute parameterized SQL  
-        /// </summary>
-        /// <returns>Number of rows affected</returns>
-        public int Execute(
-            IDbConnection cnn, 
-            string sql, 
-            dynamic param = null, 
-            IDbTransaction transaction = null,
-            int? commandTimeout = null, 
-            CommandType? commandType = null)
-        {
-            return SqlMapper.Execute(
-                cnn,
-                sql,
-                param,
-                transaction,
-                commandTimeout,
-                commandType);
+            return _connection.QueryMultiple(sql, param as object, transaction, commandTimeout, commandType);
         }
     }
 
@@ -3795,9 +3793,202 @@ string name, object value = null, DbType? dbType = null, ParameterDirection? dir
     public interface IGridReader
     {
         /// <summary>
-        /// Read the next grid of results
+        /// 
         /// </summary>
+        /// <param name="buffered"></param>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
         IEnumerable<T> Read<T>(bool buffered = true);
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="buffered"></param>
+        /// <returns></returns>
+        IEnumerable<dynamic> Read(bool buffered = true);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="func"></param>
+        /// <param name="splitOn"></param>
+        /// <param name="buffered"></param>
+        /// <typeparam name="TFirst"></typeparam>
+        /// <typeparam name="TSecond"></typeparam>
+        /// <typeparam name="TReturn"></typeparam>
+        /// <returns></returns>
+        IEnumerable<TReturn> Read<TFirst, TSecond, TReturn>(
+            Func<TFirst, TSecond, TReturn> func,
+            string splitOn = "id",
+            bool buffered = true);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="func"></param>
+        /// <param name="splitOn"></param>
+        /// <param name="buffered"></param>
+        /// <typeparam name="TFirst"></typeparam>
+        /// <typeparam name="TSecond"></typeparam>
+        /// <typeparam name="TThird"></typeparam>
+        /// <typeparam name="TReturn"></typeparam>
+        /// <returns></returns>
+        IEnumerable<TReturn> Read<TFirst, TSecond, TThird, TReturn>(
+            Func<TFirst, TSecond, TThird, TReturn> func,
+            string splitOn = "id",
+            bool buffered = true);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="func"></param>
+        /// <param name="splitOn"></param>
+        /// <param name="buffered"></param>
+        /// <typeparam name="TFirst"></typeparam>
+        /// <typeparam name="TSecond"></typeparam>
+        /// <typeparam name="TThird"></typeparam>
+        /// <typeparam name="TFourth"></typeparam>
+        /// <typeparam name="TReturn"></typeparam>
+        /// <returns></returns>
+        IEnumerable<TReturn> Read<TFirst, TSecond, TThird, TFourth, TReturn>(
+            Func<TFirst, TSecond, TThird, TFourth, TReturn> func,
+            string splitOn = "id",
+            bool buffered = true);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="func"></param>
+        /// <param name="splitOn"></param>
+        /// <param name="buffered"></param>
+        /// <typeparam name="TFirst"></typeparam>
+        /// <typeparam name="TSecond"></typeparam>
+        /// <typeparam name="TThird"></typeparam>
+        /// <typeparam name="TFourth"></typeparam>
+        /// <typeparam name="TFifth"></typeparam>
+        /// <typeparam name="TReturn"></typeparam>
+        /// <returns></returns>
+        IEnumerable<TReturn> Read<TFirst, TSecond, TThird, TFourth, TFifth, TReturn>(
+            Func<TFirst, TSecond, TThird, TFourth, TFifth, TReturn> func,
+            string splitOn = "id",
+            bool buffered = true);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="func"></param>
+        /// <param name="splitOn"></param>
+        /// <param name="buffered"></param>
+        /// <typeparam name="TFirst"></typeparam>
+        /// <typeparam name="TSecond"></typeparam>
+        /// <typeparam name="TThird"></typeparam>
+        /// <typeparam name="TFourth"></typeparam>
+        /// <typeparam name="TFifth"></typeparam>
+        /// <typeparam name="TSixth"></typeparam>
+        /// <typeparam name="TReturn"></typeparam>
+        /// <returns></returns>
+        IEnumerable<TReturn> Read<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TReturn>(
+            Func<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TReturn> func,
+            string splitOn = "id",
+            bool buffered = true);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="func"></param>
+        /// <param name="splitOn"></param>
+        /// <param name="buffered"></param>
+        /// <typeparam name="TFirst"></typeparam>
+        /// <typeparam name="TSecond"></typeparam>
+        /// <typeparam name="TThird"></typeparam>
+        /// <typeparam name="TFourth"></typeparam>
+        /// <typeparam name="TFifth"></typeparam>
+        /// <typeparam name="TSixth"></typeparam>
+        /// <typeparam name="TSeventh"></typeparam>
+        /// <typeparam name="TReturn"></typeparam>
+        /// <returns></returns>
+        IEnumerable<TReturn> Read<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh, TReturn>(
+            Func<TFirst, TSecond, TThird, TFourth, TFifth, TSixth, TSeventh, TReturn> func,
+            string splitOn = "id",
+            bool buffered = true);
     }
-#endif
+
+    /// <summary>
+    /// Simple interface to expose key methods of the parameters class (rather than changing the nested IDynamicParameters)
+    /// </summary>
+    public interface IParametes
+    {
+        /// <summary>
+        /// Add
+        /// </summary>
+        /// <param name="param"></param>
+        void AddDynamicParams(dynamic param);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        /// <param name="dbType"></param>
+        /// <param name="direction"></param>
+        /// <param name="size"></param>
+        void Add(
+            string name,
+            object value = null,
+            DbType? dbType = null,
+            ParameterDirection? direction = null,
+            int? size = null);
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="name"></param>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        T Get<T>(string name);
+    }
+
+    /// <summary>
+    /// interface for a parameters factory 
+    /// </summary>
+    public interface IParametersFactory
+    {
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        IParametes CreateInstance();
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="args"></param>
+        /// <returns></returns>
+        IParametes CreateInstance(dynamic args);
+    }
+
+    /// <summary>
+    /// Concrete parameter factory
+    /// </summary>
+    public class ParametersFactory : IParametersFactory
+    {
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        public IParametes CreateInstance()
+        {
+            return CreateInstance(null);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="args"></param>
+        /// <returns></returns>
+        public IParametes CreateInstance(dynamic args)
+        {
+            return new DynamicParameters(args);
+        }
+    }
+    #endif
 }
